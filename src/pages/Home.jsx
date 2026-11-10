@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { Map, setWorkerUrl } from 'maplibre-gl'
+import { Keyboard } from '@capacitor/keyboard';
 import { Crosshair } from 'lucide-react'
 import { getListSearch } from '../services/Services' 
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -12,9 +13,11 @@ export default function Home() {
   const [isShowList, setIsShowList] = useState(false)
   const [listSearch, setListSearch] = useState([])
   const [query, setQuery] = useState("")
+  const debounceTimer = useRef(null)
 
   function goToMyLocation() {
     const map = mapInstance.current
+    if (!map || !myPosition) return
     map.flyTo({
       center: myPosition,
       zoom: 16.5,
@@ -23,15 +26,36 @@ export default function Home() {
     })
   }
 
-  async function getSelectedPlace(id) {
-    console.log(id)
+  async function getSelectedPlace(item) {
     setIsShowList(false)
+    const map = mapInstance.current
+    if (!map || !item.lon || !item.lat) return
+    map.flyTo({
+      center: [parseFloat(item.lon), parseFloat(item.lat)],
+      zoom: 16,
+      duration: 2000
+    })
+    Keyboard.hide()
   }
 
-  async function getAllListSearch(e) {
-    setQuery(e)
-    const data = await getListSearch(e)
-    setListSearch(data)
+  function handleSearchChange(e) {
+    const value = e.target.value
+    setQuery(value)
+
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current)
+    }
+
+    debounceTimer.current = setTimeout(async () => {
+      if (value.trim().length > 1) {
+        const data = await getListSearch(value)
+        setListSearch(data)
+        setIsShowList(true)
+      } else {
+        setListSearch([])
+        setIsShowList(false)
+      }
+    }, 400)
   }
   
   useEffect(() => {
@@ -42,9 +66,9 @@ export default function Home() {
         container: 'map',
         style: 'https://tiles.openfreemap.org/styles/liberty',
         center: [106.827153, -6.175110],
-        zoom: is3D ? 50 : 16,
-        bearing: is3D ? -17 : 0,
-        pitch: is3D ? 55 : 0
+        zoom: 16,
+        bearing: 0,
+        pitch: 0
       })
 
       mapInstance.current.on('load', () => {
@@ -57,6 +81,13 @@ export default function Home() {
             features: []
           }
         })
+
+        map.on('click', (e) => {
+          const lng = e.lngLat.lng;
+          const lat = e.lngLat.lat;
+
+          console.log(e);
+        });
 
         map.addLayer({
           id: 'user-location-circle',
@@ -74,10 +105,10 @@ export default function Home() {
           navigator.geolocation.getCurrentPosition(
             (p) => {
               const { longitude, latitude } = p.coords
-              setMyPosition([p.coords.longitude, p.coords.latitude])
+              setMyPosition([longitude, latitude])
 
               map.setCenter([longitude, latitude])
-              map.setZoom(is3D ? 50 : 16)
+              map.setZoom(16)
 
               const source = map.getSource('user-location')
               if (source) {
@@ -108,20 +139,32 @@ export default function Home() {
         mapInstance.current = null
       }
     }
-  }, [is3D])
+  }, [])
+
+  function toggle3DMode(mode) {
+    setIs3D(mode)
+    const map = mapInstance.current
+    if (!map) return
+
+    map.easeTo({
+      pitch: mode ? 55 : 0,
+      bearing: mode ? -17 : 0,
+      duration: 1000
+    })
+  }
 
   return (
     <div id="map" className="h-screen w-full relative">
       <div className="absolute z-20 top-4 w-full flex flex-col items-center">
-        <input className="w-[95%] outline-0 bg-white rounded-lg p-3"  placeholder="Search items..." onFocus={() => setIsShowList(true)} onBlur={() => setIsShowList(false)} value={query} onChange={(e) => getAllListSearch(e.target.value)}/>
+        <input className="w-[95%] outline-0 bg-white rounded-lg p-3 shadow-md" placeholder="Search items..." onFocus={() => setIsShowList(true)} value={query} onChange={handleSearchChange}/>
         {
-          isShowList ? <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden w-[95%] mt-2">
+          isShowList ? <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden w-[95%] mt-2 bg-white shadow-lg">
           {listSearch.length > 0 ? (
             listSearch.map((item,i) => (
               <li key={i}>
                 <button onMouseDown={e => e.preventDefault()} onClick={() => getSelectedPlace(item)} className="w-full text-left p-3 flex flex-col bg-white hover:bg-gray-50 cursor-pointer">
                   <span className="font-medium text-gray-800">{item.name}</span>
-                  <span className="text-gray-800">{item.display_name}</span>
+                  <span className="text-gray-800 text-sm">{item.display_name}</span>
                 </button>
               </li>
             ))
@@ -130,11 +173,11 @@ export default function Home() {
           )}
         </ul> : null}
       </div>
-      <div className="absolute bottom-4 right-4 z-20 flex flex-col gap-3">
-        <button className="p-3 bg-white rounded-lg shadow-md hover:bg-gray-100 flex items-center justify-center text-gray-700 aspect-square" onClick={goToMyLocation}> <Crosshair size={22}/></button>
+      <div className="absolute bottom-19 right-4 z-20 flex flex-col gap-3">
+        <button className="p-3 bg-white rounded-lg shadow-md hover:bg-gray-100 flex items-center justify-center text-gray-700 aspect-square cursor-pointer" onClick={goToMyLocation}> <Crosshair size={22}/></button>
         <div className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-          <button className={`text-2xl p-4 ${!is3D ? "bg-gray-200" : ""} text-gray-700 font-semibold cursor-pointer`} onClick={() => setIs3D(false)}>2D</button>
-          <button className={`text-2xl p-4 ${is3D ? "bg-gray-200" : ""} text-gray-700 font-semibold cursor-pointer`} onClick={() => setIs3D(true)}>3D</button>
+          <button className={`${!is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-0 cursor-pointer`} onClick={() => toggle3DMode(false)}>2D</button>
+          <button className={`${is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-0 cursor-pointer`} onClick={() => toggle3DMode(true)}>3D</button>
         </div>
       </div>
     </div>
