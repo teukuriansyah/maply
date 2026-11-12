@@ -7,7 +7,6 @@ const api = axios.create({
 export async function getListSearch(q) {
     if (!q || q.trim() === "") return []
 
-    // Clean up any accidental leading slashes (e.g. "/monas" -> "monas")
     const cleanQuery = q.startsWith('/') ? q.slice(1) : q
 
     try {
