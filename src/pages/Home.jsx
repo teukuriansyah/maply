@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from 'react'
 import { Map, setWorkerUrl } from 'maplibre-gl'
 import { Keyboard } from '@capacitor/keyboard';
-import { Crosshair, X } from 'lucide-react'
+import { Crosshair, X, Bookmark } from 'lucide-react'
 import { getListSearch } from '../services/Services' 
+import { Navigation } from 'lucide-react';
+import BottomBar from "../components/BottomBar"
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -184,53 +186,66 @@ export default function Home() {
     })
   }
 
-  return (
-    <div className="h-screen w-full relative overflow-hidden bg-white">
-      {/* Layer Peta */}
-      <div id="map" className="h-full w-full absolute inset-0 z-10" />
+  
+return (
+  <div className="h-dvh w-full relative overflow-hidden bg-white">
+    {/* Layer Peta */}
+    <div id="map" className="absolute inset-0 z-10 h-full w-full" />
 
-      {/* Search Bar */}
-      <div className="fixed z-30 top-4 w-full flex flex-col items-center pointer-events-none">
-        <input className="w-[95%] outline-0 bg-white rounded-lg p-3 shadow-md pointer-events-auto" placeholder="Search items..." onFocus={() => setIsShowList(true)} value={query} onChange={handleSearchChange} />
-        {isShowList && (
-          <ul className="divide-y divide-gray-200 border border-gray-200 rounded-lg overflow-hidden w-[95%] mt-2 bg-white shadow-lg pointer-events-auto max-h-60 overflow-y-auto">
-            {listSearch.length > 0 ? (
-              listSearch.map((item, i) => (
-                <li key={i}>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => getSelectedPlace(item)} className="w-full text-left p-3 flex flex-col bg-white hover:bg-gray-50 cursor-pointer">
-                    <span className="font-medium text-gray-800">{item.name}</span>
-                    <span className="text-gray-800 text-sm">{item.display_name}</span>
-                  </button>
-                </li>
-              ))
-            ) : (
-              <li className="p-4 text-center text-gray-500">No items found</li>
-            )}
-          </ul>
-        )}
-      </div>
+    {/* Search Bar */}
+    <div className="absolute top-4 left-0 z-30 flex w-full flex-col items-center px-2 pointer-events-none">
+      <input className="w-full outline-none bg-white rounded-xl p-3 shadow-md pointer-events-auto border border-gray-100" placeholder="Search items..." onFocus={() => setIsShowList(true)} value={query} onChange={handleSearchChange} />
+      {isShowList && (
+        <ul className="w-full max-h-60 mt-2 overflow-y-auto divide-y divide-gray-200 border border-gray-200 rounded-xl bg-white shadow-lg pointer-events-auto">
+          {listSearch.length > 0 ? (
+            listSearch.map((item, i) => (
+              <li key={i}>
+                <button onMouseDown={e => e.preventDefault()} onClick={() => getSelectedPlace(item)} className="w-full text-left p-3 flex flex-col bg-white hover:bg-gray-50 cursor-pointer">
+                  <span className="font-medium text-gray-800">{item.name}</span>
+                  <span className="text-gray-800 text-sm">{item.display_name}</span>
+                </button>
+              </li>
+            ))
+          ) : (
+            <li className="p-4 text-center text-gray-500">No items found</li>
+          )}
+        </ul>
+      )}
+    </div>
 
-      {/* Tombol Kanan Bawah */}
-      <div className={`absolute right-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out ${selectedPlaceInfo == null ? 'bottom-6' : selectedPlaceInfo.name.length > 33 && selectedPlaceInfo.category.length > 38 ? "bottom-[250px]" : selectedPlaceInfo.name.length > 33 || selectedPlaceInfo.category.length > 38 ? "bottom-[170px]" : "bottom-[140px]"}`}>
-        <button className="p-3 bg-white rounded-lg shadow-md hover:bg-gray-100 flex items-center justify-center text-gray-700 aspect-square cursor-pointer" onClick={goToMyLocation}><Crosshair size={22}/></button>
-        <div className="flex flex-col bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
-          <button className={`${!is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-0 cursor-pointer`} onClick={() => toggle3DMode(false)}>2D</button>
-          <button className={`${is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-0 cursor-pointer`} onClick={() => toggle3DMode(true)}>3D</button>
-        </div>
-      </div>
-
-      {/* Bottom Sheet Detail Lokasi */}
-      <div className={`absolute bottom-0 left-0 w-full z-30 bg-white rounded-t-2xl shadow-2xl p-4 transition-transform duration-300 ease-in-out border-t border-gray-200 ${selectedPlaceInfo ? 'translate-y-0' : 'translate-y-full'}`}>
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
-        <div className="flex justify-between items-start">
-          <div>
-            <h2 className="text-lg font-bold text-gray-800">{selectedPlaceInfo?.name}</h2>
-            <p className="text-sm text-gray-500 capitalize">{selectedPlaceInfo?.category.split("_").join(" ")}</p>
-            {selectedPlaceInfo?.lat && (<p className="text-xs text-gray-400 mt-1">Koordinat: {selectedPlaceInfo.lat}, {selectedPlaceInfo.lng}</p>)}
-          </div>
-          <button onClick={() => setSelectedPlaceInfo(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-600 cursor-pointer"><X size={20}/></button>
-        </div>
+    {/* Tombol Kanan Bawah */}
+    <div className={`absolute right-4 z-20 flex flex-col gap-3 transition-all duration-300 ease-in-out ${selectedPlaceInfo == null ? 'bottom-24' : selectedPlaceInfo.name.length > 33 && selectedPlaceInfo.category.length > 38 ? "bottom-[375px]" : selectedPlaceInfo.name.length > 33 || selectedPlaceInfo.category.length > 38 ? "bottom-[300px]" : "bottom-[265px]"}`}>
+      <button className="p-3 bg-white rounded-xl shadow-md hover:bg-gray-100 flex items-center justify-center text-gray-700 aspect-square cursor-pointer" onClick={goToMyLocation}><Crosshair size={22}/></button>
+      <div className="flex flex-col bg-white rounded-xl shadow-md overflow-hidden border border-gray-200">
+        <button className={`${!is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-none cursor-pointer`} onClick={() => toggle3DMode(false)}>2D</button>
+        <button className={`${is3D ? "bg-gray-200" : ""} font-medium text-xl text-gray-700 p-3 outline-none cursor-pointer`} onClick={() => toggle3DMode(true)}>3D</button>
       </div>
     </div>
-  )
+
+    {/* Bottom Sheet Detail Lokasi */}
+    <div className={`absolute bottom-16 left-0 w-full z-30 bg-white rounded-t-2xl shadow-2xl p-4 transition-transform duration-300 ease-in-out border-t border-gray-200 ${selectedPlaceInfo ? 'translate-y-0' : 'translate-y-full'}`}>
+      <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3"></div>
+      <div className="flex justify-between items-start">
+        <div className="min-w-0 flex-1 pr-3">
+          <div>
+            <h2 className="text-lg font-bold text-gray-800 break-words">{selectedPlaceInfo?.name}</h2>
+            <p className="text-sm text-gray-500 capitalize break-words">{selectedPlaceInfo?.category.split("_").join(" ")}</p>
+            {selectedPlaceInfo?.lat && (<p className="text-xs text-gray-400 mt-1">Koordinat: {selectedPlaceInfo.lat}, {selectedPlaceInfo.lng}</p>)}
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <button className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 w-full"><Navigation size={14} /> Rute</button>
+            <button className="font-semibold rounded-full px-4 py-2 flex items-center gap-1.5"><Bookmark /></button>
+          </div>
+        </div>
+        <button onClick={() => setSelectedPlaceInfo(null)} className="p-2 rounded-full hover:bg-gray-100 text-gray-600 cursor-pointer shrink-0"><X size={20}/></button>
+      </div>
+    </div>
+
+    {/* Container BottomBar */}
+    <div className="fixed bottom-0 left-0 w-full z-40">
+      <BottomBar/>
+    </div>
+  </div>
+)
+
 }

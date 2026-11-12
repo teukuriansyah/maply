@@ -1,4 +1,5 @@
 import { Wrench, Info } from 'lucide-react'
+import BottomBar from '../components/BottomBar'
 
 export default function Settings() {
   return (
@@ -18,6 +19,9 @@ export default function Settings() {
             </div>
           </div>
         </div>
+      </div>
+      <div className="fixed bottom-0 w-full">
+        <BottomBar/>
       </div>
     </div>
   )

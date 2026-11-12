@@ -1,12 +1,13 @@
 import React from 'react'
 import { Database } from 'lucide-react'
 import ListSaved from "../components/ListSaved.jsx"
+import BottomBar from "../components/BottomBar.jsx"
 
 export default function Saved() {
   return (
     <div>
       {/* Title & Deskripsi */}
-      <div className="sticky p-4">
+      <div className="sticky top-0 bg-white p-4">
         <span className="text-xl font-semibold">Tempat Tersimpan</span>
         <div className="flex items-center gap-4 p-3 rounded-xl bg-gray-200 mt-2">
           <div className="p-2 bg-blue-100 text-blue-700 rounded-lg">
@@ -21,12 +22,15 @@ export default function Saved() {
       
       {/* List Saved */}
       <div>
-        <ul className="w-full flex flex-col items-center gap-5">
+        <ul className="w-full flex flex-col items-center gap-5 pb-8">
           <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
           <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
           <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
           <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
         </ul>
+      </div>
+      <div className="sticky bottom-0 w-full">
+        <BottomBar/>
       </div>
     </div>
   )
