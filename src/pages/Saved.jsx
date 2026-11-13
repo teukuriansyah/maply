@@ -1,9 +1,21 @@
-import React from 'react'
+import { useState, useEffect } from 'react'
+import { Preferences } from '@capacitor/preferences';
 import { Database } from 'lucide-react'
 import ListSaved from "../components/ListSaved.jsx"
 import BottomBar from "../components/BottomBar.jsx"
 
 export default function Saved() {
+  const [dataSaved, setDataSaved] = useState()
+
+  async function fetchingSaved() {
+    const { value } = await Preferences.get({ key: 'data' })
+    const { rawSaved } = JSON.parse(value)
+    setDataSaved(rawSaved)
+  }
+
+  useEffect(() => {
+    fetchingSaved()
+  },[])
   return (
     <div>
       {/* Title & Deskripsi */}
@@ -23,13 +35,12 @@ export default function Saved() {
       {/* List Saved */}
       <div>
         <ul className="w-full flex flex-col items-center gap-5 pb-8">
-          <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
-          <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
-          <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
-          <li className="w-[90%]"><ListSaved name="Test" address="address" /></li>
+          {
+            dataSaved?.map(d => <li className="w-[90%]"><ListSaved name={d.name} address={d.address} /></li>)
+          }
         </ul>
       </div>
-      <div className="sticky bottom-0 w-full">
+      <div className="fixed bottom-0 w-full">
         <BottomBar/>
       </div>
     </div>

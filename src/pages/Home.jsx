@@ -4,6 +4,7 @@ import { Keyboard } from '@capacitor/keyboard';
 import { Crosshair, X, Bookmark, Navigation, Clock, Route, MapPin } from 'lucide-react'
 import { getListSearch } from '../services/SearchList' 
 import { showRoute } from "../services/ShowRoute.js"
+import { Preferences } from '@capacitor/preferences'
 import BottomBar from "../components/BottomBar"
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -11,6 +12,8 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 export default function Home() {
   const mapInstance = useRef(null)
   const debounceTimer = useRef(null)
+  const [activity, setActivity] = useState()
+  const [saved, setSaved] = useState()
   const [myPosition, setMyPosition] = useState(null)
   const [is3D, setIs3D] = useState(false)
   const [isShowList, setIsShowList] = useState(false)
@@ -82,6 +85,26 @@ export default function Home() {
       bearing: mode ? -17 : 0,
       duration: 1000
     })
+  }
+
+  async function setSavedLocation(name,address,lng,lat) {
+    const payload = { name, address,lng, lat }
+    const rawData = saved
+    rawData.push(payload)
+    setRawSaved(rawData)
+    const data = { rawActivity, rawSaved }
+    await Preferences.set({
+      key: 'data',
+      value: JSON.stringify(data),
+    });
+  }
+
+  async function getSavedLocation() {
+    const { value } = await Preferences.get({ key: 'data' })
+    const { rawActivity } = value == null ? [] : rawActivity
+    const { rawSaved } = value == null ? [] : rawSaved
+    setActivity(rawActivity)
+    setSaved(rawSaved)
   }
 
   async function showingRoute() {
@@ -161,6 +184,7 @@ export default function Home() {
   
   useEffect(() => {
     setWorkerUrl(workerUrl)
+    getSavedLocation()
 
     if (!mapInstance.current) {
       mapInstance.current = new Map({
@@ -386,7 +410,7 @@ export default function Home() {
                 <button onClick={showingRoute} className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 w-full cursor-pointer">
                   <Navigation size={14} /> Rute
                 </button>
-                <button className="font-semibold rounded-full px-4 py-2 flex items-center gap-1.5">
+                <button className="font-semibold rounded-full px-4 py-2 flex items-center gap-1.5" onClick={() => setSavedLocation(selectedPlaceInfo.name,selectedPlaceInfo.category,selectedPlaceInfo.lng, selectedPlaceInfo.lat)}>
                   <Bookmark />
                 </button>
               </div>
