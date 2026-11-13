@@ -13,6 +13,19 @@ export default function Saved() {
     setDataSaved(rawSaved)
   }
 
+  async function removeSavedLocation(lng, lat) {
+    const rawSaved = dataSaved.filter(
+      item => !(item.lng === lng && item.lat === lat)
+    )
+    setDataSaved(rawSaved)
+
+    const data = { rawActivity: activity, rawSaved }
+    await Preferences.set({
+      key: 'data',
+      value: JSON.stringify(data),
+    })
+  }
+
   useEffect(() => {
     fetchingSaved()
   },[])
@@ -36,7 +49,7 @@ export default function Saved() {
       <div>
         <ul className="w-full flex flex-col items-center gap-5 pb-8">
           {
-            dataSaved?.map(d => <li className="w-[90%]"><ListSaved name={d.name} address={d.address} /></li>)
+            dataSaved?.map(d => <li className="w-[90%]"><ListSaved name={d.name} address={d.address} clear={() => removeSavedLocation(d.lng,d.lat)} /></li>)
           }
         </ul>
       </div>
