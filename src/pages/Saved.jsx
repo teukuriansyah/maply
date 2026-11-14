@@ -62,7 +62,7 @@ export default function Saved() {
       {/* List Saved */}
       <div>
         <ul className="w-full flex flex-col items-center gap-5 pb-8">
-          {dataSaved.map(d => <li key={`${d.lng}-${d.lat}`} className="w-[90%]"><ListSaved name={d.name} address={d.address.split("_").map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(" ")} clear={() => removeSavedLocation(d.lng, d.lat)} /></li>)}
+          {dataSaved.map(d => <li key={`${d.lng}-${d.lat}`} className="w-[90%]"><ListSaved name={d.name} address={d.address.split("_").join(" ")} clear={() => removeSavedLocation(d.lng, d.lat)} /></li>)}
         </ul>
       </div>
 
