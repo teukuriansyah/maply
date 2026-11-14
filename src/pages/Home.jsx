@@ -51,6 +51,21 @@ export default function Home() {
     })
   }
 
+  async function setActivityLocation(from,to) {
+    const alreadyActivity = activity.some(item => item && item.lng === lng && item.lat === lat)
+    if (alreadySaved) return
+
+    const payload = { from,to }
+    const rawActivity = [...activity.filter(Boolean), payload]
+
+    setActivity(rawActivity)
+
+    await Preferences.set({
+      key: 'data',
+      value: JSON.stringify({ rawActivity: activity, rawSaved })
+    })
+  }
+
   function handleSearchChange(e) {
     const value = e.target.value
     setQuery(value)
@@ -303,7 +318,7 @@ export default function Home() {
                 <p className="text-sm text-gray-500 capitalize break-words">{selectedPlaceInfo.category.split("_").join(" ")}</p>
                 {selectedPlaceInfo.lat && <p className="text-xs text-gray-400 mt-1">Koordinat: {selectedPlaceInfo.lat}, {selectedPlaceInfo.lng}</p>}
                 <div className="mt-3 flex items-center gap-2">
-                  <button onClick={() => { const map = mapInstance.current; if (map) map.flyTo({ center: [parseFloat(selectedPlaceInfo.lng), parseFloat(selectedPlaceInfo.lat)], zoom: 17, duration: 1500 }) }} className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 flex-1 cursor-pointer"><Navigation size={14}/>Tunjukkan Rute</button>
+                  <button onClick={() => { const map = mapInstance.current; if (map) map.flyTo({ center: [parseFloat(selectedPlaceInfo.lng), parseFloat(selectedPlaceInfo.lat)], zoom: 17, duration: 1500 }) }} className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 flex-1 cursor-pointer" onClick={setActivityLocation("",selectedPlaceInfo.name)}><Navigation size={14}/>Tunjukkan Rute</button>
                   <button className="font-semibold rounded-full px-4 py-2 flex items-center gap-1.5" onClick={() => { if (!selectedPlaceInfo) return; if (isSelectedPlaceSaved) { removeSavedLocation(selectedPlaceInfo.lng, selectedPlaceInfo.lat) } else { setSavedLocation(selectedPlaceInfo.name, selectedPlaceInfo.category, selectedPlaceInfo.lng, selectedPlaceInfo.lat) } }} aria-label={isSelectedPlaceSaved ? "Remove bookmark" : "Add bookmark"}><Bookmark fill={isSelectedPlaceSaved ? "currentColor" : "none"} /></button>
                 </div>
               </div>
