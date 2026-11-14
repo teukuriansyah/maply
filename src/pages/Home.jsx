@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
-import { Map, setWorkerUrl } from 'maplibre-gl'
+import { Map, LngLatBounds, setWorkerUrl } from 'maplibre-gl'
 import { Keyboard } from '@capacitor/keyboard'
 import { Crosshair, X, Bookmark, MapPin, Navigation } from 'lucide-react'
 import { getListSearch } from '../services/SearchList.js'
@@ -26,6 +26,85 @@ export default function Home() {
     printCurrentPosition()
   }
 
+  async function showRoute(to) {
+    const map = mapInstance.current
+    if (!map || !myPosition) {
+      alert("Lokasi awal belum tersedia.")
+      return
+    }
+
+    const lng = Number(to.lng)
+    const lat = Number(to.lat)
+
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      alert("Koordinat tujuan tidak valid.")
+      return
+    }
+
+    const startLng = myPosition[0]
+    const startLat = myPosition[1]
+
+    if (startLng === lng && startLat === lat) {
+      alert("Anda sudah berada di lokasi tujuan.")
+      return
+    }
+
+    try {
+      const start = `${startLng},${startLat}`
+      const end = `${lng},${lat}`
+
+      const response = await fetch(`https://router.project-osrm.org/route/v1/driving/${start};${end}?overview=full&geometries=geojson`)
+
+      if (!response.ok) throw new Error(`HTTP Error: ${response.status}`)
+
+      const data = await response.json()
+
+      if (data.code !== "Ok" || !data.routes?.length) throw new Error("Rute tidak ditemukan.")
+
+      const route = data.routes[0]
+      const coordinates = route.geometry.coordinates
+
+      if (!coordinates || coordinates.length < 2) throw new Error("Koordinat rute tidak valid.")
+
+      const routeGeoJSON = { type: "Feature", properties: {}, geometry: route.geometry }
+
+      if (map.getSource("route")) {
+        map.getSource("route").setData(routeGeoJSON)
+      } else {
+        map.addSource("route", { type: "geojson", data: routeGeoJSON })
+
+        map.addLayer({
+          id: "route-line",
+          type: "line",
+          source: "route",
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": "#2563eb", "line-width": 6, "line-opacity": 0.85 }
+        })
+      }
+
+      const bounds = new LngLatBounds(coordinates[0], coordinates[0])
+      coordinates.forEach(coordinate => bounds.extend(coordinate))
+
+      map.fitBounds(bounds, { padding: { top: 100, bottom: 250, left: 50, right: 50 }, duration: 1500 })
+
+      const distance = (route.distance / 1000).toFixed(2)
+      const duration = Math.ceil(route.duration / 60)
+
+      alert(`Rute ditemukan!\n\nJarak: ${distance} km\nEstimasi: ${duration} menit`)
+
+      const payload = { from: `${startLng} ${startLat}`, to: `${lng} ${lat}`, destination: selectedPlaceInfo?.name || "Lokasi tujuan", distance: route.distance, duration: route.duration, date: new Date().toISOString() }
+      const rawActivity = [...activity.filter(Boolean), payload]
+
+      setActivity(rawActivity)
+
+      await Preferences.set({ key: 'data', value: JSON.stringify({ rawActivity, rawSaved: saved }) })
+
+    } catch (error) {
+      console.error("Gagal membuat rute:", error)
+      alert("Gagal mendapatkan rute perjalanan.")
+    }
+  }
+
   async function getSelectedPlace(item) {
     setIsShowList(false)
 
@@ -35,35 +114,23 @@ export default function Home() {
     const lng = parseFloat(item.lon)
     const lat = parseFloat(item.lat)
 
-    map.flyTo({
-      center: [lng, lat],
-      zoom: 16,
-      duration: 2000
-    })
+    map.flyTo({ center: [lng, lat], zoom: 16, duration: 2000 })
 
     Keyboard.hide()
 
-    setSelectedPlaceInfo({
-      name: item.name,
-      category: item.display_name || 'Lokasi Pilihan',
-      lng: item.lon,
-      lat: item.lat
-    })
+    setSelectedPlaceInfo({ name: item.name, category: item.display_name || 'Lokasi Pilihan', lng: item.lon, lat: item.lat })
   }
 
-  async function setActivityLocation(from,to) {
+  async function setActivityLocation(from, to) {
     const alreadyActivity = activity.some(item => item && item.lng === lng && item.lat === lat)
     if (alreadySaved) return
 
-    const payload = { from,to }
+    const payload = { from, to }
     const rawActivity = [...activity.filter(Boolean), payload]
 
     setActivity(rawActivity)
 
-    await Preferences.set({
-      key: 'data',
-      value: JSON.stringify({ rawActivity: activity, rawSaved })
-    })
+    await Preferences.set({ key: 'data', value: JSON.stringify({ rawActivity: activity, rawSaved }) })
   }
 
   function handleSearchChange(e) {
@@ -91,11 +158,7 @@ export default function Home() {
     const map = mapInstance.current
     if (!map) return
 
-    map.easeTo({
-      pitch: mode ? 55 : 0,
-      bearing: mode ? -17 : 0,
-      duration: 1000
-    })
+    map.easeTo({ pitch: mode ? 55 : 0, bearing: mode ? -17 : 0, duration: 1000 })
   }
 
   async function setSavedLocation(name, address, lng, lat) {
@@ -107,20 +170,14 @@ export default function Home() {
 
     setSaved(rawSaved)
 
-    await Preferences.set({
-      key: 'data',
-      value: JSON.stringify({ rawActivity: activity, rawSaved })
-    })
+    await Preferences.set({ key: 'data', value: JSON.stringify({ rawActivity: activity, rawSaved }) })
   }
 
   async function removeSavedLocation(lng, lat) {
     const rawSaved = saved.filter(item => item && !(item.lng === lng && item.lat === lat))
     setSaved(rawSaved)
 
-    await Preferences.set({
-      key: 'data',
-      value: JSON.stringify({ rawActivity: activity, rawSaved })
-    })
+    await Preferences.set({ key: 'data', value: JSON.stringify({ rawActivity: activity, rawSaved }) })
   }
 
   async function getSavedLocation() {
@@ -141,21 +198,14 @@ export default function Home() {
     try {
       let permission = await Geolocation.checkPermissions()
 
-      if (permission.location !== 'granted') {
-        permission = await Geolocation.requestPermissions()
-      }
+      if (permission.location !== 'granted') permission = await Geolocation.requestPermissions()
 
       if (permission.location !== 'granted') {
         alert("Izin lokasi ditolak.")
         return
       }
 
-      const coordinates = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-      })
-
+      const coordinates = await Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 10000, maximumAge: 0 })
       const { longitude, latitude } = coordinates.coords
       const position = [longitude, latitude]
 
@@ -164,24 +214,11 @@ export default function Home() {
       const map = mapInstance.current
 
       if (map) {
-        map.flyTo({
-          center: position,
-          zoom: 16,
-          duration: 1500
-        })
+        map.flyTo({ center: position, zoom: 16, duration: 1500 })
 
         const source = map.getSource('user-location')
 
-        if (source) {
-          source.setData({
-            type: 'Feature',
-            geometry: {
-              type: 'Point',
-              coordinates: position
-            },
-            properties: {}
-          })
-        }
+        if (source) source.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: position }, properties: {} })
       }
     } catch (error) {
       console.error("Gagal mendapatkan lokasi:", error)
@@ -194,47 +231,25 @@ export default function Home() {
     getSavedLocation()
 
     if (!mapInstance.current) {
-      mapInstance.current = new Map({
-        container: 'map',
-        style: 'https://tiles.openfreemap.org/styles/liberty',
-        center: [106.827153, -6.175110],
-        zoom: 16,
-        bearing: 0,
-        pitch: 0
-      })
+      mapInstance.current = new Map({ container: 'map', style: 'https://tiles.openfreemap.org/styles/liberty', center: [106.827153, -6.175110], zoom: 16, bearing: 0, pitch: 0 })
 
       const map = mapInstance.current
 
       map.on('load', () => {
-        map.addSource('user-location', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: []
-          }
-        })
+        map.addSource('user-location', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
 
         map.addLayer({
           id: 'user-location-circle',
           type: 'circle',
           source: 'user-location',
-          paint: {
-            'circle-radius': 10,
-            'circle-color': '#3b82f6',
-            'circle-stroke-width': 3,
-            'circle-stroke-color': '#ffffff'
-          }
+          paint: { 'circle-radius': 10, 'circle-color': '#3b82f6', 'circle-stroke-width': 3, 'circle-stroke-color': '#ffffff' }
         })
 
         printCurrentPosition()
       })
 
       map.on('click', (e) => {
-        const bbox = [
-          [e.point.x - 5, e.point.y - 5],
-          [e.point.x + 5, e.point.y + 5]
-        ]
-
+        const bbox = [[e.point.x - 5, e.point.y - 5], [e.point.x + 5, e.point.y + 5]]
         const features = map.queryRenderedFeatures(bbox)
         if (!features || features.length === 0) return
 
@@ -243,12 +258,7 @@ export default function Home() {
 
         const props = clickedFeature.properties
 
-        setSelectedPlaceInfo({
-          name: props.name,
-          category: props.class || props.subclass || clickedFeature.layer.id,
-          lng: e.lngLat.lng.toFixed(4),
-          lat: e.lngLat.lat.toFixed(4)
-        })
+        setSelectedPlaceInfo({ name: props.name, category: props.class || props.subclass || clickedFeature.layer.id, lng: e.lngLat.lng.toFixed(4), lat: e.lngLat.lat.toFixed(4) })
       })
 
       map.on('mousemove', (e) => {
@@ -268,9 +278,7 @@ export default function Home() {
     }
   }, [])
 
-  const isSelectedPlaceSaved = selectedPlaceInfo
-    ? saved.some(item => item && item.lng === selectedPlaceInfo.lng && item.lat === selectedPlaceInfo.lat)
-    : false
+  const isSelectedPlaceSaved = selectedPlaceInfo ? saved.some(item => item && item.lng === selectedPlaceInfo.lng && item.lat === selectedPlaceInfo.lat) : false
 
   return (
     <div className="h-dvh w-full relative overflow-hidden bg-white">
@@ -318,7 +326,7 @@ export default function Home() {
                 <p className="text-sm text-gray-500 capitalize break-words">{selectedPlaceInfo.category.split("_").join(" ")}</p>
                 {selectedPlaceInfo.lat && <p className="text-xs text-gray-400 mt-1">Koordinat: {selectedPlaceInfo.lat}, {selectedPlaceInfo.lng}</p>}
                 <div className="mt-3 flex items-center gap-2">
-                  <button onClick={() => { const map = mapInstance.current; if (map) map.flyTo({ center: [parseFloat(selectedPlaceInfo.lng), parseFloat(selectedPlaceInfo.lat)], zoom: 17, duration: 1500 }) }} className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 flex-1 cursor-pointer" onClick={setActivityLocation("",selectedPlaceInfo.name)}><Navigation size={14}/>Tunjukkan Rute</button>
+                  <button onClick={() => showRoute({ lng: selectedPlaceInfo.lng, lat: selectedPlaceInfo.lat })} className="bg-blue-700 text-white font-semibold rounded-full px-4 py-2 flex items-center justify-center gap-1.5 flex-1 cursor-pointer"><Navigation size={14}/> Tunjukkan Rute</button>
                   <button className="font-semibold rounded-full px-4 py-2 flex items-center gap-1.5" onClick={() => { if (!selectedPlaceInfo) return; if (isSelectedPlaceSaved) { removeSavedLocation(selectedPlaceInfo.lng, selectedPlaceInfo.lat) } else { setSavedLocation(selectedPlaceInfo.name, selectedPlaceInfo.category, selectedPlaceInfo.lng, selectedPlaceInfo.lat) } }} aria-label={isSelectedPlaceSaved ? "Remove bookmark" : "Add bookmark"}><Bookmark fill={isSelectedPlaceSaved ? "currentColor" : "none"} /></button>
                 </div>
               </div>
